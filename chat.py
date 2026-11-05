@@ -1,15 +1,11 @@
-import os
 import httpx
-from dotenv import load_dotenv
+from ai_agent_lab.config import get_settings
 
-load_dotenv()
+settings = get_settings()
 
-API_KEY = os.getenv("LLM_API_KEY")
-BASE_URL = os.getenv("LLM_BASE_URL")
-MODEL = os.getenv("LLM_MODEL")
-
-if not API_KEY:
-    raise SystemExit("没有读到 LLM_API_KEY.检查 1) .env是否在项目根目录 2) 变量名是否正确")
+API_KEY = settings.llm_api_key
+BASE_URL = settings.llm_base_url
+MODEL = settings.llm_model
 
 def chat(messages: list[dict], temperature: float = 0.7) -> str:
     url = f"{BASE_URL}/chat/completions"
