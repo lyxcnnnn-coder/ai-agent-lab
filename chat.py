@@ -1,57 +1,23 @@
-import httpx
-from ai_agent_lab.config import get_settings
+from ai_agent_lab.client import LLMClient
+from ai_agent_lab.models import Message
 
-settings = get_settings()
 
-API_KEY = settings.llm_api_key
-BASE_URL = settings.llm_base_url
-MODEL = settings.llm_model
+def main() -> None:
+    client = LLMClient()
+    history: list[Message] = []
 
-def chat(messages: list[dict], temperature: float = 0.7) -> str:
-    url = f"{BASE_URL}/chat/completions"
-    
-    headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json",
-    }
-    
-    body = {
-        "model": MODEL,
-        "messages": messages,
-        "temperature": temperature,
-    }
-    
-    resp = httpx.post(url, headers=headers, json=body, timeout=30)
-
-    if resp.status_code != 200:
-        print("请求失败，HTTP状态码：", resp.status_code)
-        print("服务器返回：", resp.text)
-        resp.raise_for_status()
-        
-    data = resp.json()  
-    # data 为字典类型
-    
-    usage = data.get("usage", {})
-    print(f"[token] 输入 {usage.get('prompt_tokens')}, 输出 {usage.get('completion_tokens')}")
-
-    return data["choices"][0]["message"]["content"]
-
-if __name__ == "__main__":
-    history = []
-    
-    print("输入exit退出")
+    print("输入 exit 退出")
     while True:
         user_input = input("你： ")
-        
         if user_input.strip().lower() in ("exit", "quit"):
             print("再见")
             break
-        
-        history.append({"role": "user", "content": user_input})
-        
-        reply = chat(history)
-        print(f"AI: {reply}")
-        
-        history.append({"role": "assistant", "content": reply})
-    
-    
+
+        history.append(Message(role="user", content=user_input))
+        reply = client.chat(history)
+        print(f"AI：{reply}")
+        history.append(Message(role="assistant", content=reply))
+
+
+if __name__ == "__main__":
+    main()
