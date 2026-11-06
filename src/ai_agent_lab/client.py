@@ -4,11 +4,12 @@
 # 第 3 步（你的任务）：改成返回 ChatResponse
 # ============================================================
 
+import time
+import uuid
 import httpx
 
 from .config import Settings, get_settings
-from .models import Message
-
+from .models import Message, Usage, ChatResponse
 
 class LLMClient:
     def __init__(
@@ -36,7 +37,10 @@ class LLMClient:
         self,
         messages: list[Message],
         temperature: float = 0.7,
-    ) -> str:
+    ) -> ChatResponse:
+        request_id = uuid.uuid4().hex[:8]
+        
+        started = time.perf_counter()
         # 1. Message 对象 -> 字典列表
         payload = [m.model_dump() for m in messages]
 
@@ -62,4 +66,19 @@ class LLMClient:
 
         # 6. 解析并返回文字
         data = resp.json()
-        return data["choices"][0]["message"]["content"]
+        
+        usage_data = data.get("usage",{})
+        usage = Usage(
+            prompt_tokens=usage_data.get("prompt_tokens", 0),
+            completion_tokens=usage_data.get("completion_tokens", 0),
+        )
+        
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        
+        return ChatResponse(
+            content=data["choices"][0]["message"]["content"],
+            model=self.settings.llm_model,
+            usage=usage,
+            latency_ms=latency_ms,
+            request_id=request_id,
+        )

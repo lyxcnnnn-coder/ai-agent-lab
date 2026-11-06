@@ -14,9 +14,10 @@ def main() -> None:
             break
 
         history.append(Message(role="user", content=user_input))
-        reply = client.chat(history)
-        print(f"AI：{reply}")
-        history.append(Message(role="assistant", content=reply))
+        resp = client.chat(history)
+        print(f"AI：{resp.content}")
+        print(f"id {resp.request_id} | {resp.latency_ms}ms | {resp.usage.total_tokens} tokens")
+        history.append(Message(role="assistant", content=resp.content))
 
 
 if __name__ == "__main__":
