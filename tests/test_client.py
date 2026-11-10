@@ -7,7 +7,7 @@
 import httpx
 import pytest
 
-from ai_agent_lab.errors import LLMAuthError
+from ai_agent_lab.errors import LLMAuthError, LLMBadResponseError, LLMRateLimitError, LLMTimeoutError
 from ai_agent_lab.client import LLMClient
 from ai_agent_lab.config import Settings
 from ai_agent_lab.models import Message
@@ -51,5 +51,33 @@ def test_auth_error() -> None:
         )
         
     client = make_client(handler)
+    
     with pytest.raises(LLMAuthError, match="401"):
+        client.chat([Message(role="user", content="hi")])
+        
+def test_rate_limit_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(429, json={"error": "too many request"})
+    
+    client = make_client(handler)
+    
+    with pytest.raises(LLMRateLimitError, match="429"):
+        client.chat([Message(role="user", content="hi")])
+
+def test_time_out_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.TimeoutException("timed out", request=request)
+
+    client = make_client(handler)
+    
+    with pytest.raises(LLMTimeoutError):
+        client.chat([Message(role="user", content="hi")])
+        
+def test_bad_json_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"not json")
+    
+    client = make_client(handler)
+    
+    with pytest.raises(LLMBadResponseError):
         client.chat([Message(role="user", content="hi")])
