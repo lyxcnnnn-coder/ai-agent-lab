@@ -7,6 +7,7 @@
 import time
 import uuid
 import httpx
+import logging
 
 from .config import Settings, get_settings
 from .models import Message, Usage, ChatResponse
@@ -19,6 +20,8 @@ from tenacity import (
 )
 
 RETRYABLE_ERRORS = (LLMRateLimitError, LLMServerError, LLMTimeoutError)
+
+logger = logging.getLogger(__name__)
 
 class LLMClient:
     def __init__(
@@ -127,32 +130,6 @@ class LLMClient:
             "temperature": temperature,
         }
 
-        # # 4. 用 self._http.post 发请求（不是 httpx.Client）
-        # resp = self._http.post(url, headers=headers, json=body)
-
-        # # 5. 非 2xx 抛异常
-        # resp.raise_for_status()
-
-        # # 6. 解析并返回文字
-        # data = resp.json()
-        
-        # try:
-        #     resp = self._http.post(url, headers=headers, json=body)
-        # except httpx.TimeoutException as e:
-        #     raise LLMTimeoutError(f"请求超时：{url}") from e
-        
-        # if resp.status_code in (401, 403):
-        #     raise LLMAuthError(f"认证失败({resp.status_code}),检查API KEY.")
-        
-        # if resp.status_code == 429:
-        #     raise LLMRateLimitError(f"请求太频繁(429),请稍后再试")
-        
-        # if resp.status_code >= 500:
-        #     raise LLMServerError(f"服务端错误({resp.status_code})：{resp.text[:200]}")
-        
-        # if resp.status_code != 200:
-        #     raise LLMError(f"请求失败({resp.status_code})：{resp.text[:200]}")
-        
         resp = self._post_with_retry(url, headers, body)
         
         try:
@@ -168,6 +145,17 @@ class LLMClient:
         )
         
         latency_ms = int((time.perf_counter() - started) * 1000)
+        
+        logger.info(
+            "llm_request_success",
+            extra={
+                "request_id": request_id,
+                "model": self.settings.llm_model,
+                "latency_ms": latency_ms,
+                "prompt_tokens": usage.prompt_tokens,
+                "completion_tokens": usage.completion_tokens,
+            },
+        )
         
         return ChatResponse(
             content=content,

@@ -1,8 +1,10 @@
 from ai_agent_lab.client import LLMClient
+from ai_agent_lab.logging_config import configure_logging
 from ai_agent_lab.models import Message
 
 
 def main() -> None:
+    configure_logging()    #启用JSON日志
     client = LLMClient()
     history: list[Message] = []
 
