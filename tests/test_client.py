@@ -6,6 +6,7 @@
 
 import httpx
 import pytest
+import logging
 
 from ai_agent_lab.errors import LLMAuthError, LLMBadResponseError, LLMRateLimitError, LLMTimeoutError
 from ai_agent_lab.client import LLMClient
@@ -145,3 +146,27 @@ def test_chat_retries_rate_limit_twice_then_succeed() -> None:
     assert attempts == 3
     # 验证成功响应经过解析，返回了第三次请求的正文。
     assert response.content == "重试后成功"
+
+def test_retry_logs_share_request_id(caplog) -> None:
+    calls = 0
+    
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(429, json={"error": "too many"})
+    
+    client = make_client(handler)
+    
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(LLMRateLimitError):
+            client.chat([Message(role="user", content="hi")])
+            
+    retry_logs = [r for r in caplog.records if r.getMessage() == "llm_retry"]
+    
+    assert len(retry_logs) == 2
+    assert [r.attempt for r in retry_logs] == [1, 2]
+    assert len({r.request_id for r in retry_logs}) == 1
+    
+    failed_logs = [r for r in caplog.records if r.getMessage() == "llm_request_failed"]
+    assert len(failed_logs) == 1
+    assert failed_logs[0].request_id == retry_logs[0].request_id    

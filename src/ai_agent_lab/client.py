@@ -10,6 +10,7 @@ import httpx
 import logging
 
 from .config import Settings, get_settings
+from .logging_config import RequestIdAdapter
 from .models import Message, Usage, ChatResponse
 from .errors import LLMAuthError, LLMBadResponseError, LLMError, LLMRateLimitError, LLMServerError, LLMTimeoutError
 from tenacity import (
@@ -90,9 +91,23 @@ class LLMClient:
         url: str,
         headers: dict[str, str],
         body: dict,
+        log: RequestIdAdapter,
     ) -> httpx.Response:
         # 重试控制层,遇到错误怎么办,负责决定是否重试,重试几次,等待多久
         # 关心遇到错误后怎么办
+        # tenacity 每次"失败后,等待前"会调用这个函数
+        # retry_state 里有:第几次尝试,下次等多久,这次抛了什么异常
+        def _on_retry(retry_state) -> None:
+            exc = retry_state.outcome.exception() if retry_state.outcome else None
+            log.warning(
+                "llm_retry",
+                extra={
+                    "attempt": retry_state.attempt_number,
+                    "wait_s": round(getattr(retry_state.next_action, "sleep", 0) or 0, 3),
+                    "error": type(exc).__name__ if exc else None,
+                },
+            )
+            
         retryer = Retrying(
             retry=retry_if_exception_type(RETRYABLE_ERRORS),
             stop=stop_after_attempt(self.settings.max_attempts),
@@ -100,6 +115,7 @@ class LLMClient:
                 multiplier=self.settings.retry_initial_wait,
                 max=self.settings.retry_max_wait,
             ),
+            before_sleep=_on_retry,
             reraise=True,
         )
         
@@ -111,6 +127,7 @@ class LLMClient:
         temperature: float = 0.7,
     ) -> ChatResponse:
         request_id = uuid.uuid4().hex[:8]
+        log = RequestIdAdapter(logger, {"request_id": request_id})
         
         started = time.perf_counter()
         # 1. Message 对象 -> 字典列表
@@ -130,7 +147,17 @@ class LLMClient:
             "temperature": temperature,
         }
 
-        resp = self._post_with_retry(url, headers, body)
+        try:
+            resp = self._post_with_retry(url, headers, body, log)
+        except LLMError as e:
+            log.error(
+                "llm_request_failed",
+                extra={
+                    "error": type(e).__name__,
+                    "latency_ms": int((time.perf_counter() - started) * 1000),
+                },
+            )
+            raise
         
         try:
             data = resp.json()
