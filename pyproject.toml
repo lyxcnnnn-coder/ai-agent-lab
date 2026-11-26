@@ -20,5 +20,24 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "mypy>=2.4.1",
     "pytest>=9.2.0",
+    "ruff>=0.17.6",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_configs = true
+ignore_missing_imports = true
+
+# pydantic 插件让 mypy 理解 BaseSettings 的字段可以从环境变量读取，
+# 否则 mypy 会误报 llm_api_key 是"缺少必填参数"。
+plugins = ["pydantic.mypy"]

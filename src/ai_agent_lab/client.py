@@ -4,21 +4,22 @@
 # 第 3 步（你的任务）：改成返回 ChatResponse
 # ============================================================
 
+import logging
 import time
 import uuid
-import httpx
-import logging
 
-from .config import Settings, get_settings
-from .logging_config import RequestIdAdapter
-from .models import Message, Usage, ChatResponse
-from .errors import LLMAuthError, LLMBadResponseError, LLMError, LLMRateLimitError, LLMServerError, LLMTimeoutError
+import httpx
 from tenacity import (
     Retrying,
     retry_if_exception_type,
     stop_after_attempt,
     wait_exponential_jitter,
 )
+
+from .config import Settings, get_settings
+from .errors import LLMAuthError, LLMBadResponseError, LLMError, LLMRateLimitError, LLMServerError, LLMTimeoutError
+from .logging_config import RequestIdAdapter
+from .models import ChatResponse, Message, Usage
 
 RETRYABLE_ERRORS = (LLMRateLimitError, LLMServerError, LLMTimeoutError)
 

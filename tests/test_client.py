@@ -4,13 +4,14 @@
 # 手段：用httpx.MockTransport 拦截请求，返回构造好的响应
 # ======================================
 
-import httpx
-import pytest
 import logging
 
-from ai_agent_lab.errors import LLMAuthError, LLMBadResponseError, LLMRateLimitError, LLMTimeoutError
+import httpx
+import pytest
+
 from ai_agent_lab.client import LLMClient
 from ai_agent_lab.config import Settings
+from ai_agent_lab.errors import LLMAuthError, LLMBadResponseError, LLMRateLimitError, LLMTimeoutError
 from ai_agent_lab.models import Message
 
 
