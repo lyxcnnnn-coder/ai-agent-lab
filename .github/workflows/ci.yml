@@ -28,4 +28,5 @@ jobs:
               run: uv run --frozen mypy src
 
             - name: Test
-              run: uv run --frozen pytest -q
+              run: uv run --frozen pytest -q --cov=ai_agent_lab --cov-report=term-missing --cov-fail-under=80
+              

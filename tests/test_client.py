@@ -11,7 +11,7 @@ import pytest
 
 from ai_agent_lab.client import LLMClient
 from ai_agent_lab.config import Settings
-from ai_agent_lab.errors import LLMAuthError, LLMBadResponseError, LLMRateLimitError, LLMTimeoutError
+from ai_agent_lab.errors import LLMAuthError, LLMBadResponseError, LLMRateLimitError, LLMTimeoutError, LLMServerError, LLMError
 from ai_agent_lab.models import Message
 
 
@@ -170,4 +170,36 @@ def test_retry_logs_share_request_id(caplog) -> None:
     
     failed_logs = [r for r in caplog.records if r.getMessage() == "llm_request_failed"]
     assert len(failed_logs) == 1
-    assert failed_logs[0].request_id == retry_logs[0].request_id    
+    assert failed_logs[0].request_id == retry_logs[0].request_id  
+
+def test_server_error_retries_then_fails() -> None:
+    """5xx 可重试： 3 次都失败后抛 LLMServerError."""  
+    calls = 0
+    
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(500, json={"error": "boom"})
+    
+    client = make_client(handler)
+    
+    with pytest.raises(LLMServerError):
+        client.chat([Message(role="user", content="hi")])
+    
+    assert calls == 3
+    
+def test_bad_request_not_retried() -> None:
+    """400 不可重试： 只调用 1 次就抛 LLMError"""
+    calls = 0
+    
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return httpx.Response(400, json={"error": "bad request"})
+    
+    client = make_client(handler)
+    
+    with pytest.raises(LLMError):
+        client.chat([Message(role="user", content="hi")])
+    
+    assert calls == 1
