@@ -1,3 +1,8 @@
 .env
 .venv/
 __pycache__/
+
+# 测试/类型检查/格式化的缓存,不应该进仓库
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
