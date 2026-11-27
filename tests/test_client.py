@@ -11,7 +11,14 @@ import pytest
 
 from ai_agent_lab.client import LLMClient
 from ai_agent_lab.config import Settings
-from ai_agent_lab.errors import LLMAuthError, LLMBadResponseError, LLMRateLimitError, LLMTimeoutError, LLMServerError, LLMError
+from ai_agent_lab.errors import (
+    LLMAuthError,
+    LLMBadResponseError,
+    LLMError,
+    LLMRateLimitError,
+    LLMServerError,
+    LLMTimeoutError,
+)
 from ai_agent_lab.models import Message
 
 
